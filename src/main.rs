@@ -1,3 +1,5 @@
+mod test_data;
+
 use std::collections::HashMap;
 use serde_json::Value as JsonValue;
 use mlua::{Lua, Function, LuaSerdeExt};
@@ -94,15 +96,7 @@ fn main() {
 
     println!("=================== Setting up test data ===================");
 
-    let test_data = vec![
-        ("1", r#"{"message": "hello world", "priority": 5}"#),
-        ("2", r#"{"foo": "bar"}"#),
-        ("3", r#"{"message": "HELLO", "active": true, "priority": 9}"#),
-        ("4", r#"{"active": false}"#),
-        ("5", r#"{"message": "Bonjour", "priority": 3}"#),
-    ];
-
-    for (key, value) in test_data {
+    for (key, value) in test_data::get_test_documents() {
         match db.set(key.to_string(), value.to_string()) {
             Ok(_) => println!("Inserted key '{}'", key),
             Err(e) => eprintln!("Failed to insert '{}': {}", key, e),
@@ -110,6 +104,7 @@ fn main() {
     }
 
     println!("\n=================== Current database contents ===================");
+
     for key in db.keys() {
         if let Some(value) = db.get(key) {
             println!("  {}: {}", key, value);
@@ -117,84 +112,35 @@ fn main() {
     }
 
     println!("\n=================== Registering UDF ===================");
-    let udf_code = r#"
-        function(val)
-            if val.message == nil then
-                return false
-            end
-            return string.lower(val.message):find("hello") ~= nil
-        end
-    "#;
 
-    match db.register_udf("has_hello".to_string(), udf_code.to_string()) {
-        Ok(_) => println!("Registered UDF 'has_hello'"),
-        Err(e) => {
-            eprintln!("Failed to register UDF: {}", e);
+    for udf in test_data::get_test_udfs() {
+        match db.register_udf(udf.name.to_string(), udf.code.to_string()) {
+            Ok(_) => println!("Registered UDF '{}': {}", udf.name, udf.description),
+            Err(e) => eprintln!("Failed to register UDF '{}': {}", udf.name, e),
         }
-    }
-
-    let high_priority_udf = r#"
-        function(val)
-            return val.priority and val.priority >= 8
-        end
-    "#;
-
-    match db.register_udf("high_priority".to_string(), high_priority_udf.to_string()) {
-        Ok(_) => println!("Registered UDF 'high_priority'"),
-        Err(e) => {
-            eprintln!("Failed to register UDF: {}", e);
-        }
-    }
-
-    let is_active_udf = r#"
-        function(val)
-            return val.active == true
-        end
-    "#;
-
-    match db.register_udf("is_active".to_string(), is_active_udf.to_string()) {
-        Ok(_) => println!("Registered UDF 'is_active'"),
-        Err(e) => eprintln!("Failed to register UDF: {}", e),
     }
 
     println!("\n=================== Registered UDFs =================== ");
+
     for udf_name in db.list_udfs() {
         println!("  - {}", udf_name);
     }
 
     println!("\n=================== [get_where] Query with UDF ===================");
 
-    println!("\n[Query: has_hello]");
-    match db.get_where("has_hello") {
-        Ok(results) => {
-            println!("Found {} matching document(s):", results.len());
-            for (key, value) in results {
-                println!("  Key: {}, Value: {}", key, value);
+    for udf in test_data::get_test_udfs() {
+        println!("\n[Query: {}]", udf.name);
+        println!("Description: {}", udf.description);
+        
+        match db.get_where(udf.name) {
+            Ok(results) => {
+                println!("Found {} matching document(s):", results.len());
+                for (key, value) in results {
+                    println!("  Key: {}, Value: {}", key, value);
+                }
             }
+            Err(e) => eprintln!("Query failed: {}", e),
         }
-        Err(e) => eprintln!("Query failed: {}", e),
-    }
-
-    println!("\n[Query: high_priority]");
-    match db.get_where("high_priority") {
-        Ok(results) => {
-            println!("Found {} matching document(s):", results.len());
-            for (key, value) in results {
-                println!("  Key: {}, Value: {}", key, value);
-            }
-        }
-        Err(e) => eprintln!("Query failed: {}", e),
-    }
-
-    println!("\n[Query: is_active]");
-    match db.get_where("is_active") {
-        Ok(results) => {
-            println!("Found {} matching document(s):", results.len());
-            for (key, value) in results {
-                println!("  Key: {}, Value: {}", key, value);
-            }
-        }
-        Err(e) => eprintln!("Query failed: {}", e),
     }
 
     println!("\n[Query: nonexistent_udf]");
