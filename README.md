@@ -14,7 +14,7 @@ This project provides:
 ### Build & Run  
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/udf-in-memory.git
+git clone https://github.com/gowripratyusha28/udf-in-memory.git
 cd udf-in-memory
 
 # Build in debug mode (for development)
