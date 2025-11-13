@@ -27,3 +27,5 @@ cargo build --release
 
 
 See design_doc.md for full details of design choices
+
+Video link: https://drive.google.com/file/d/13euBGb0fpJsVoPDeoxwz1rO82IbKGtpX/view?usp=sharing
